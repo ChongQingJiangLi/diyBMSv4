@@ -46,6 +46,7 @@ The time.h file in this library conflicts with the time.h file in the ESP core p
 
 
 #include <Arduino.h>
+#include <time.h>
 #include <ESP8266WiFi.h>
 #include <Hash.h>
 #include <ESPAsyncWebServer.h>
@@ -57,16 +58,7 @@ The time.h file in this library conflicts with the time.h file in the ESP core p
 #include <Wire.h>
 #include <SPIFFSLogger.h>
 
-
-//Debug flags for ntpclientlib
-#define DBG_PORT Serial1
-#define DEBUG_NTPCLIENT
-
-#include <TimeLib.h>
-#include <NtpClientLib.h>
-
 #include "defines.h"
-
 
 bool PCF8574Enabled;
 volatile bool emergencyStop=false;
@@ -79,8 +71,8 @@ AsyncWebServer server(80);
 
 bool server_running=false;
 bool wifiFirstConnected = false;
-bool NTPsyncEventTriggered = false; // True if a time even has been triggered
-NTPSyncEvent_t ntpEvent; // Last triggered event
+//bool NTPsyncEventTriggered = false; // True if a time even has been triggered
+//NTPSyncEvent_t ntpEvent; // Last triggered event
 
 uint8_t packetType=0;
 uint8_t previousRelayState[RELAY_TOTAL];
@@ -146,10 +138,10 @@ SPIFFSLogger<HistoricCellDataBank> historicBank3("/bank3", 7);
 
 void timerHistoricLoggerCallback() {
 
-  if (NTP.getFirstSync()==0) {
-    Serial1.println("Aborted historic data...NTP not synced");
-    return;
-  }
+  //if (NTP.getFirstSync()==0) {
+//    Serial1.println("Aborted historic data...NTP not synced");
+    //return;
+  //}
 
   //Loop through cells writing data to the SPIFFs
   //this might be a bit slow!
@@ -202,27 +194,11 @@ void dumpPacketToDebug(packet *buffer) {
 }
 
 uint16_t minutesSinceMidnight() {
-  return (hour() * 60) + minute();
+  time_t now = time(nullptr);
+  struct tm *tmp = gmtime(&now);
+  return (tmp->tm_hour * 60) + tmp->tm_min;
 }
 
-void processSyncEvent (NTPSyncEvent_t ntpEvent) {
-    if (ntpEvent < 0) {
-        Serial1.printf ("Time Sync error: %d\n", ntpEvent);
-        if (ntpEvent == noResponse)
-            Serial1.println ("NTP server not reachable");
-        else if (ntpEvent == invalidAddress)
-            Serial1.println ("Invalid NTP server address");
-        else if (ntpEvent == errorSending)
-            Serial1.println ("Error sending request");
-        else if (ntpEvent == responseError)
-            Serial1.println ("NTP response error");
-    } else {
-        if (ntpEvent == timeSyncd) {
-            Serial1.print ("Got NTP time: ");
-            Serial1.println (NTP.getTimeDateString (NTP.getLastNTPSync()));
-        }
-    }
-}
 
 
 void onPacketReceived(const uint8_t* receivebuffer, size_t len)
@@ -701,18 +677,6 @@ void onMqttConnect(bool sessionPresent) {
 }
 
 
-void SPIFFsListAllFiles() {
-  Dir dir = SPIFFS.openDir("/bank0");
-  Serial1.println("SPIFF contents:");
-  while (dir.next()) {
-      Serial1.print(dir.fileName());
-      Serial1.print(" / ");
-      Serial1.println(dir.fileSize());
-  }
-  Serial1.println("Done");
-}
-
-
 
 void LoadConfiguration() {
 
@@ -911,10 +875,6 @@ void setup() {
   } else {
 
     //Config NTP
-      NTP.onNTPSyncEvent ([](NTPSyncEvent_t event) {
-         ntpEvent = event;
-         NTPsyncEventTriggered = true;
-     });
 
       Serial1.println("Connecting to WIFI");
 
@@ -936,7 +896,6 @@ void setup() {
       connectToWifi();
   }
 
-  SPIFFsListAllFiles();
 }
 
 void loop() {
@@ -967,18 +926,13 @@ void loop() {
       Serial1.print("Requesting NTP from ");
       Serial1.println(mysettings.ntpServer);
       wifiFirstConnected = false;
-      //Update time every 10 minutes
-      NTP.setInterval (600);
-      NTP.setNTPTimeout (NTP_TIMEOUT);
-      // String ntpServerName, int8_t timeZone, bool daylight, int8_t minutes, AsyncUDP* udp_conn
-      NTP.begin (mysettings.ntpServer, mysettings.timeZone, mysettings.daylight, mysettings.minutesTimeZone);
+
+      //mysettings.timeZone*60+mysettings.minutesTimeZone
+
+      configTime(mysettings.timeZone* 3600, mysettings.daylight ?  60*60 : 0, mysettings.ntpServer);
   }
 
-  if (NTPsyncEventTriggered) {
-      processSyncEvent (ntpEvent);
-      NTPsyncEventTriggered = false;
-  }
-
+  //TODO: We should only do this if NTP is correct!
   historicBank0.process();
   historicBank1.process();
   historicBank2.process();

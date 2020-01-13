@@ -30,7 +30,7 @@ distribute your   contributions under the same license as the original.
 #include "ArduinoJson.h"
 #include "defines.h"
 #include "ESP8266TrueRandom.h"
-#include <TimeLib.h>
+//#include <TimeLib.h>
 #include "settings.h"
 
 #include "html_1.h"
@@ -438,6 +438,65 @@ void DIYBMSServer::identifyModule(AsyncWebServerRequest *request) {
 }
 
 
+void DIYBMSServer::history(AsyncWebServerRequest *request) {
+  AsyncResponseStream *response = request->beginResponseStream("application/json");
+
+  DynamicJsonDocument doc(2048);
+  JsonObject rootJson = doc.to<JsonObject>();
+
+  String str = "";
+  Dir dir = SPIFFS.openDir("/");
+  JsonArray fileArray = rootJson.createNestedArray("files");
+  while (dir.next()) {
+    JsonObject f = fileArray.createNestedObject();
+    f["file"]=dir.fileName();
+    f["size"]=dir.fileSize();
+  }
+  serializeJson(doc, *response);
+  request->send(response);
+
+    /*
+  SPIFFSLogData<HistoricCellDataBank> data[10];
+
+  //The last row
+  time_t now = time(nullptr);
+
+  JsonArray bankArray = root.createNestedArray("history");
+
+  for (uint8_t bank = 0; bank < mysettings.totalNumberOfBanks; bank++) {
+
+    const size_t rowCount = historicBank0.rowCount(now);
+    size_t rowsFound=historicBank0.readRows(&data[0], now, rowCount - 10, 10);
+
+    for (size_t row = 0; row < rowsFound; row++) {
+      JsonObject xxx = bankArray.createNestedObject();
+      xxx["timestampUTC"]=data[row].timestampUTC;
+
+      JsonArray ba = bankArray.createNestedArray();
+
+      for (uint16_t i = 0; i < maximum_cell_modules; i++) {
+        JsonObject cell = ba.createNestedObject();
+        cell["v"]=data[row].data.allCells[i].voltagemV;
+        cell["int"]=data[row].data.allCells[i].internalTemp;
+        cell["ext"]=data[row].data.allCells[i].externalTemp;
+        cell["status"]=data[row].data.allCells[i].statusBits;
+      }
+    }
+  }
+
+  serializeJson(doc, *response);
+  request->send(response);
+*/
+}
+
+
+uint16_t DIYBMSServer::minutesSinceMidnight() {
+  time_t now = time(nullptr);
+  struct tm *tmp = gmtime(&now);
+  return (tmp->tm_hour * 60) + tmp->tm_min;
+}
+
+
 void DIYBMSServer::rules(AsyncWebServerRequest *request) {
   AsyncResponseStream *response =
       request->beginResponseStream("application/json");
@@ -445,7 +504,7 @@ void DIYBMSServer::rules(AsyncWebServerRequest *request) {
   DynamicJsonDocument doc(2048);
   JsonObject root = doc.to<JsonObject>();
 
-  root["timenow"]=(hour() * 60) + minute();
+  root["timenow"]=minutesSinceMidnight();
 
   root["PCF8574"]=PCF8574Enabled;
 
@@ -507,7 +566,7 @@ void DIYBMSServer::settings(AsyncWebServerRequest *request) {
   mqtt["MinutesTimeZone"] =mysettings.minutesTimeZone;
   mqtt["DST"] =mysettings.daylight;
 
-  mqtt["now"] = now();
+  mqtt["now"] = time(nullptr);
 
   serializeJson(doc, *response);
   request->send(response);
@@ -696,6 +755,7 @@ void DIYBMSServer::StartServer(AsyncWebServer *webserver) {
   _myserver->on("/identifyModule.json", HTTP_GET, DIYBMSServer::identifyModule);
   _myserver->on("/settings.json", HTTP_GET, DIYBMSServer::settings);
   _myserver->on("/rules.json", HTTP_GET, DIYBMSServer::rules);
+  _myserver->on("/history.json", HTTP_GET, DIYBMSServer::history);
 
   //POST method endpoints
   _myserver->on("/savesetting.json", HTTP_POST, DIYBMSServer::saveSetting);
