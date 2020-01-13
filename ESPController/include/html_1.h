@@ -7,8 +7,8 @@ const char FILE_INDEX_HTML[] PROGMEM = R"=====(
 <link href="https://fonts.googleapis.com/css?family=Nova+Mono" rel="stylesheet">
 <link href="style.css" rel="stylesheet">
 <title>DIY BMS CONTROLLER v4</title>
-<script src="jquery.js" integrity="sha384-uO8bbTyODckJtE/WwwJ6G1HTYdz/AXeOCiA5Ody4QcB6wbjFiaNnddxbnACs7O7O" crossorigin="anonymous"></script>
-<script src="echarts.simple.min.js" integrity="" crossorigin="anonymous"></script>
+<script src="jquery.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+<script src="echarts.simple.min.js" integrity="sha256-CxlxgbUXeGRJaKmzCtFtuI75BynXJMwegbBzSX9ANjY=" crossorigin="anonymous"></script>
 </head>
 
 <body>
